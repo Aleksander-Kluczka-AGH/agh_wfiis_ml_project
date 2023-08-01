@@ -1,11 +1,16 @@
-## Machine Learning Project
+# Machine learning - Project
 
-Machine Learning Project for AU's course. It features an optimization of neural network weights
-with nature-inspired metaheuristics using Artificial Bee Colony algorithm.
+Project written for Applied Computer Science **Machine learning** course at [AGH UST](https://www.agh.edu.pl/en) [WFiIS](https://www.fis.agh.edu.pl/en/).
 
-Semester 8, year 2023.
+Featuring an optimization of neural network weights with nature-inspired metaheuristics using Artificial Bee Colony algorithm.
 
-### Authors
+Semester `8`, year `2023`.
+
+## Authors
 
 - [Krystian Śledź](https://github.com/krystiansledz)
 - [Aleksander Kluczka](https://github.com/vis4rd)
+
+## License
+
+Sources are licensed under MIT, a free and open-source license. For details, please see [the license file](LICENSE.md).

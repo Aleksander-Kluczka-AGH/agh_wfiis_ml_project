@@ -5,7 +5,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from sys import stdout
-from typing import Callable
+from typing import Callable, Optional
 
 import numpy as np
 from numpy.typing import NDArray
@@ -177,7 +177,7 @@ class BeeHive:
         # return bee with the best fitness
         return self.population[index]
 
-    def _compute_probability(self) -> NDArray:
+    def _compute_probability(self) -> None:
         """
         Computes the relative chance that a given solution vector is chosen by an onlooker bee after
         the Waggle dance ceremony when employed bees are back within the hive.
@@ -190,9 +190,9 @@ class BeeHive:
         self.probabilities = values * 0.9 / np.max(values) + 0.1
 
         # return cumulative sums of probabilities
-        return np.cumsum(self.probabilities)
+        self.cumulative_probabilities = np.cumsum(self.probabilities)
 
-    def _send_employee(self, bee_index: int) -> None:
+    def _send_employee(self, bee_index: int, other_bee_index: Optional[int] = None) -> None:
         """2. SEND EMPLOYED BEES PHASE.
 
         During this 2nd phase, new candidate solutions are produced for each employed bee by
@@ -208,7 +208,8 @@ class BeeHive:
         parent_bee_value: float = copy.copy(bee.value)
 
         # select another bee
-        other_bee_index: int = (rand := np.random.choice(self.numb_bees - 1)) + (rand >= bee_index)
+        if other_bee_index is None:
+            other_bee_index = (rand := np.random.choice(self.numb_bees - 1)) + (rand >= bee_index)
 
         # mutate a bee from itself and any other bee
         for i in np.random.choice(self.size, int(self.size * (self.mutation_percent / 100))):
@@ -232,57 +233,22 @@ class BeeHive:
     def _send_onlookers(self) -> None:
         """3. SEND ONLOOKERS PHASE.
 
-        We define as many onlooker bees as there are employed bees in the hive since onlooker bees
-        will attempt to locally improve the solution path of the employed bee they have decided to
-        followafter the waggle dance phase.
-
-        If they improve it, they will communicate their findings to the bee they initially watched
-        "waggle dancing".
+        We define as many onlooker bees as there are employed bees in the hive. Onlooker bees
+        will attempt to locally improve the solution path of the employed bee which is selected by
+        roulette wheel.
         """
+
+        max_probability: float = self.cumulative_probabilities[-1]
+        phi: float = random.random() * max_probability
+        better_index: int = (self.cumulative_probabilities >= phi).nonzero()[0][0]
 
         # send onlookers
-        beta: float = 0
-        for _ in range(self.numb_bees):
-            # draw a random number from U[0,1]
-            phi = random.random()
-
-            # increment roulette wheel parameter beta
-            max_probability: float = max(self.probabilities)
-            beta += phi * max_probability
-            beta %= max_probability
-
-            # select a new onlooker based on waggle dance
-            index = self._select(beta)
-
+        for index in range(self.numb_bees):
             # send new onlooker
-            self._send_employee(index)
-
-    def _select(self, beta: float) -> int:
-        """4. WAGGLE DANCE PHASE.
-
-        During this 4th phase, onlooker bees are recruited using a roulette wheel selection.
-        This phase represents the "waggle dance" of honey bees (i.e. figure- eight dance).
-
-        By performing this dance, successful foragers (i.e. "employed" bees) can share, with other
-        members of the colony, information about the direction and distance to patches of flowers
-        yielding nectar and pollen, to water sources, or to new nest-site locations.
-
-        During the recruitment, the bee colony is re-sampled in order to mostly keep, within the
-        hive, the solution vector of employed bees that have a good fitness as well as a small
-        number of bees with lower fitnesses to enforce diversity.
-
-        Args:
-            beta (float): "roulette wheel selection" parameter: 0 <= beta <= max(probabilities)
-        """
-
-        # compute probability intervals "online" - i.e. re-computed after each onlooker
-        self._compute_probability()
-
-        # select a new potential "onlooker" bee
-        return (self.probabilities > beta).nonzero()[0][0]
+            self._send_employee(index, better_index)
 
     def _send_scout(self) -> None:
-        """5. SEND SCOUT BEE PHASE.
+        """4. SEND SCOUT BEE PHASE.
 
         Identifies bees whose abandonment counts exceed preset trials limit, abandons it and creates
         a new random bee to explore new random area of the domain space.
